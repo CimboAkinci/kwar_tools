@@ -323,20 +323,10 @@ def write_as_gltf(skm: KwarSkelMesh) -> None:
         materials=[
             pygltflib.Material(
                 pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
-                    baseColorTexture=pygltflib.TextureInfo(index=0),
                     metallicFactor=0,
                     roughnessFactor=1
                 )
             )
-        ],
-        textures=[
-            pygltflib.Texture(sampler=0, source=0)
-        ],
-        images=[
-            pygltflib.Image(uri=os.path.join(skm.archive_name, skm.file_name)+".png")
-        ],
-        samplers=[
-            pygltflib.Sampler()
         ],
         accessors=[
             pygltflib.Accessor(
@@ -449,7 +439,6 @@ def write_as_gltf(skm: KwarSkelMesh) -> None:
             gltf.scenes[0].nodes.append(i+1)
         gltf.skins[0].joints.append(len(gltf.nodes) - 1)
 
-    gltf.convert_images(pygltflib.ImageFormat.DATAURI)
     path = os.path.join(skm.archive_name, skm.file_name + ".gltf")
     print("writing to", path)
     gltf.save(path)
