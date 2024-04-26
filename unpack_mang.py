@@ -257,9 +257,10 @@ def decompress_lzma(data):
     return b"".join(results)
 
 for catalog in catalogs:
-    blob = C[catalog.offset:catalog.offset+catalog.size]
+    blob_size = (catalog.size // 4 + 1) * 4
+    blob = C[catalog.offset:catalog.offset+blob_size]
     decrypted = bytes()
-    for i in range(catalog.size // 4):
+    for i in range(len(blob) // 4):
         x = struct.unpack("=I", blob[i*4:(i+1)*4])[0]
         x1 = decrypt1(x, catalog.key1 + i)
         x2 = decrypt2(x1, catalog.key2 + i)
