@@ -1,4 +1,5 @@
 import base64
+import json
 import lzma
 import os
 import pygltflib
@@ -282,21 +283,27 @@ def write_as_gltf(sm: KwarStaticMesh) -> None:
             type=pygltflib.SCALAR,
         ))
         # 2. add material and image
-        gltf.images.append(pygltflib.Image(uri=os.path.join(*matl_name.split(".")) + ".png"))
-        gltf.samplers.append(pygltflib.Sampler())
-        gltf.textures.append(pygltflib.Texture(
-            sampler=len(gltf.samplers) - 1,
-            source=len(gltf.images) - 1),
-        )
-        gltf.materials.append(pygltflib.Material(
-            pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
-                baseColorTexture=pygltflib.TextureInfo(index=len(gltf.textures) - 1),
-                metallicFactor=0,
-                roughnessFactor=1
-            ),
-            #alphaMode=pygltflib.MASK,
-            #alphaCutoff=None
-        ))
+        matl_path = os.path.join(*matl_name.split(".")) + ".png"
+        matl_index = None
+        if os.path.isfile(matl_path):
+            gltf.images.append(pygltflib.Image(uri=matl_path))
+            gltf.samplers.append(pygltflib.Sampler())
+            gltf.textures.append(pygltflib.Texture(
+                sampler=len(gltf.samplers) - 1,
+                source=len(gltf.images) - 1),
+            )
+            gltf.materials.append(pygltflib.Material(
+                pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
+                    baseColorTexture=pygltflib.TextureInfo(index=len(gltf.textures) - 1),
+                    metallicFactor=0,
+                    roughnessFactor=1
+                ),
+                #alphaMode=pygltflib.MASK,
+                #alphaCutoff=None
+            ))
+            matl_index = len(gltf.materials) - 1
+        else:
+            print("%s not found, omitting texture for its group" % matl_path)
         # 3. add mesh
         gltf.meshes[0].primitives.append(pygltflib.Primitive(
             attributes=pygltflib.Attributes(
@@ -305,7 +312,7 @@ def write_as_gltf(sm: KwarStaticMesh) -> None:
                 #TEXCOORD_0=2,
             ),
             indices=len(gltf.accessors) - 1,
-            material=len(gltf.materials) - 1
+            material=matl_index
         ))
 
     gltf.convert_images(pygltflib.ImageFormat.DATAURI)
@@ -315,8 +322,20 @@ def write_as_gltf(sm: KwarStaticMesh) -> None:
 
 os.makedirs(header.archive_name, exist_ok=True)
 
+mesh_to_matl_names = {}
+# If meta.json exists update it, otherwise create one
+meta_path = os.path.join(header.archive_name, "meta.json")
+if os.path.isfile(meta_path):
+    with open(meta_path, "r") as f:
+        mesh_to_matl_names = json.load(f)
+
 for f in files:
     sm = KwarStaticMesh.from_bytes(f.contents)
-    print(f.header)
-    print("references materials:", ",".join(sm.matl_names))
+    # print("references materials:", ",".join(sm.matl_names))
     write_as_gltf(sm)
+    mesh_name = ".".join([sm.archive_name, sm.file_name])
+    mesh_to_matl_names[mesh_name] = sm.matl_names
+
+print("writing metadata to", meta_path)
+with open(meta_path, "w") as f:
+    json.dump(mesh_to_matl_names, f)
